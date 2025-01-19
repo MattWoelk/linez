@@ -10,7 +10,7 @@ use std::path::PathBuf;
 struct Args {
     target: PathBuf,
 
-    #[clap(short, long, default_value = "4096")]
+    #[clap(short, long, default_value = "1028")]
     iterations: usize,
 
     #[clap(short, long)]
@@ -46,12 +46,16 @@ fn main() {
         WindowOptions::default(),
     )
     .unwrap();
+    
+    let mut total_ticks: i32 = 0;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let mut got_improvement = false;
 
         for _ in 0..args.iterations {
-            got_improvement |= tick(&mut rng, &target, &mut approx);
+			total_ticks += 1;
+			let cost_multiplier: f32 = 1.0 + total_ticks as f32 / 100_000.0;
+            got_improvement |= tick(&mut rng, &target, &mut approx, cost_multiplier);
         }
 
         if got_improvement {
@@ -71,7 +75,7 @@ fn main() {
     }
 }
 
-fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image) -> bool {
+fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image, cost_multiplier: f32) -> bool {
     // Randomize starting point
     let beg_x = rng.gen_range(0..target.width) as isize;
     let beg_y = rng.gen_range(0..target.height) as isize;
@@ -79,12 +83,16 @@ fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image) -> bool {
     // Randomize ending point
     let end_x = rng.gen_range(0..target.width) as isize;
     let end_y = rng.gen_range(0..target.height) as isize;
-
-    // Randomize color
-    let r = rng.gen_range(0..255);
-    let g = rng.gen_range(0..255);
-    let b = rng.gen_range(0..255);
-
+    
+    // Choose a random colour from the original image
+    let x_coord = rng.gen_range(0..target.width) as u32;
+    let y_coord = rng.gen_range(0..target.height) as u32;
+    let coord: Point = [x_coord, y_coord];
+    let random_color = target.color_at(coord);
+    let r = random_color[0];
+    let g = random_color[1];
+    let b = random_color[2];
+   
     // Prepare changes required to draw the line.
     //
     // We're using a closure, since `Bresenham` is not `Clone`-able and, for
@@ -98,9 +106,9 @@ fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image) -> bool {
 
     // Check if `approx + changes()` brings us "closer" towards `target`
     let loss_delta = Image::loss_delta(target, approx, changes());
-
+    
     // ... if not, bail out
-    if loss_delta >= 0.0 {
+    if loss_delta >= -30.0 * cost_multiplier {
         return false;
     }
 
@@ -143,9 +151,11 @@ impl Image {
         approx: &Self,
         changes: impl IntoIterator<Item = (Point, Color)>,
     ) -> f32 {
+		let mut count = 0 as f32;
         changes
             .into_iter()
             .map(|(pos, new_color)| {
+				count += 1.0;
                 let target_color = target.color_at(pos);
                 let approx_color = approx.color_at(pos);
 
@@ -154,7 +164,7 @@ impl Image {
 
                 loss_with_changes - loss_without_changes
             })
-            .sum()
+            .sum::<f32>() / count
     }
 
     /// Calculates how far apart `a` is from `b`.
