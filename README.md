@@ -16,7 +16,7 @@ Quick & fun tool that approximates images using lines:
 ``` shell
 $ git clone https://github.com/Patryk27/linez
 $ cd linez
-$ cargo run --release -- images/starry-night.jpg
+$ cargo run --release -- images/starry-night.jpg -o bla.png
 # (press escape to close the app)
 ```
 
