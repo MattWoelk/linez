@@ -3,16 +3,13 @@
 Quick & fun tool that approximates images using lines:
 
 <p align="center">
-  <img height="512" src="_readme/starry-night.jpg" />
+  <img height="512" src="_readme/pearl_earring.png" />
 </p>
 
-<p align="center">
-  <img height="512" src="_readme/photo.jpg" />
-</p>
+## Modifications from original
 
-<p align="center">
-  <img height="512" src="_readme/rust.jpg" />
-</p>
+* Annealing line length and acceptable cost.
+* Sampling random colour from original image.
 
 ## Usage
 
@@ -28,7 +25,8 @@ $ cargo run --release -- images/starry-night.jpg
 1. Load image provided by user (aka the target image).
 2. Create a black image (aka the approximated image).
 3. Sample a line: randomize starting point, ending point, and color.
-4. Check if drawing this line on the approximated image would reduce _the distance_ between the approximated image and the target image.
+4. Check if drawing this line on the approximated image would reduce _the distance_ between the approximated image and
+   the target image.
 5. If so, draw the line; otherwise don't draw it.
 6. Go to 3.
 
@@ -57,4 +55,4 @@ fn pixel_distance(pixel_a, pixel_b):
 
 MIT License
 
-Copyright (c) 2024 Patryk Wychowaniec
+Original is Copyright (c) 2024 Patryk Wychowaniec
