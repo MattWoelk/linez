@@ -118,8 +118,13 @@ fn tick(
     }
 
     // Choose a random colour from the original image
-    let x_coord = rng.gen_range(0..target.width) as u32;
-    let y_coord = rng.gen_range(0..target.height) as u32;
+    //let x_coord = rng.gen_range(0..target.width) as u32;
+    //let y_coord = rng.gen_range(0..target.height) as u32;
+
+    // Choose the center of the line as the colour
+    let x_coord = ((end_x + beg_x) / 2) as u32;
+    let y_coord = ((end_y + beg_y) / 2) as u32;
+
     let coord: Point = [x_coord, y_coord];
     let random_color = target.color_at(coord);
     let r = random_color[0];
