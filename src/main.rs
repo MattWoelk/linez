@@ -46,16 +46,29 @@ fn main() {
         WindowOptions::default(),
     )
     .unwrap();
-    
+
     let mut total_ticks: i32 = 0;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let mut got_improvement = false;
 
         for _ in 0..args.iterations {
-			total_ticks += 1;
-			let cost_multiplier: f32 = 1.0 + total_ticks as f32 / 100_000.0;
-            got_improvement |= tick(&mut rng, &target, &mut approx, cost_multiplier);
+            let cost_multiplier: f32 = 1.0 + total_ticks as f32 / 100_000.0;
+            let max_line_length = cool_down_ramp(total_ticks as f32, 2000.0, 50_000.0, 50.0);
+
+            //dbg!(max_line_length);
+
+            let result = tick(
+                &mut rng,
+                &target,
+                &mut approx,
+                cost_multiplier,
+                max_line_length,
+            );
+            if result {
+                total_ticks += 1;
+            }
+            got_improvement |= result;
         }
 
         if got_improvement {
@@ -75,15 +88,35 @@ fn main() {
     }
 }
 
-fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image, cost_multiplier: f32) -> bool {
+fn tick(
+    rng: &mut impl RngCore,
+    target: &Image,
+    approx: &mut Image,
+    cost_multiplier: f32,
+    max_line_length: f32,
+) -> bool {
     // Randomize starting point
     let beg_x = rng.gen_range(0..target.width) as isize;
     let beg_y = rng.gen_range(0..target.height) as isize;
 
+    let half_max_length: isize = max_line_length as isize / 2;
+
     // Randomize ending point
-    let end_x = rng.gen_range(0..target.width) as isize;
+    let end_x = rng.gen_range(
+        isize::max(0, beg_x - half_max_length)
+            ..isize::min(target.width as isize, beg_x + half_max_length) as isize,
+    );
     let end_y = rng.gen_range(0..target.height) as isize;
-    
+
+    let x_diff = (beg_x - end_x) as f32;
+    let y_diff = (beg_y - end_y) as f32;
+
+    let line_length = f32::sqrt((x_diff * x_diff) + (y_diff * y_diff));
+
+    if line_length > max_line_length as f32 {
+        return false;
+    }
+
     // Choose a random colour from the original image
     let x_coord = rng.gen_range(0..target.width) as u32;
     let y_coord = rng.gen_range(0..target.height) as u32;
@@ -92,7 +125,7 @@ fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image, cost_multipl
     let r = random_color[0];
     let g = random_color[1];
     let b = random_color[2];
-   
+
     // Prepare changes required to draw the line.
     //
     // We're using a closure, since `Bresenham` is not `Clone`-able and, for
@@ -106,7 +139,7 @@ fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image, cost_multipl
 
     // Check if `approx + changes()` brings us "closer" towards `target`
     let loss_delta = Image::loss_delta(target, approx, changes());
-    
+
     // ... if not, bail out
     if loss_delta >= -30.0 * cost_multiplier {
         return false;
@@ -116,6 +149,11 @@ fn tick(rng: &mut impl RngCore, target: &Image, approx: &mut Image, cost_multipl
     approx.apply(changes());
 
     true
+}
+
+fn cool_down_ramp(time: f32, start_value: f32, end_time: f32, end_value: f32) -> f32 {
+    let value_jump = start_value - end_value;
+    f32::max(0.0, value_jump * (-time / end_time + 1.0)) + end_value
 }
 
 type Point = [u32; 2];
@@ -151,11 +189,11 @@ impl Image {
         approx: &Self,
         changes: impl IntoIterator<Item = (Point, Color)>,
     ) -> f32 {
-		let mut count = 0 as f32;
+        let mut count = 0 as f32;
         changes
             .into_iter()
             .map(|(pos, new_color)| {
-				count += 1.0;
+                count += 1.0;
                 let target_color = target.color_at(pos);
                 let approx_color = approx.color_at(pos);
 
@@ -164,7 +202,8 @@ impl Image {
 
                 loss_with_changes - loss_without_changes
             })
-            .sum::<f32>() / count
+            .sum::<f32>()
+            / count
     }
 
     /// Calculates how far apart `a` is from `b`.
