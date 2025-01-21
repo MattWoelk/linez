@@ -99,14 +99,15 @@ fn tick(
     let beg_x = rng.gen_range(0..target.width) as isize;
     let beg_y = rng.gen_range(0..target.height) as isize;
 
-    let half_max_length: isize = max_line_length as isize / 2;
-
     // Randomize ending point
     let end_x = rng.gen_range(
-        isize::max(0, beg_x - half_max_length)
-            ..isize::min(target.width as isize, beg_x + half_max_length) as isize,
+        isize::max(0, beg_x - max_line_length as isize)
+            ..isize::min(target.width as isize, beg_x + max_line_length as isize) as isize,
     );
-    let end_y = rng.gen_range(0..target.height) as isize;
+    let end_y = rng.gen_range(
+        isize::max(0, beg_y - max_line_length as isize)
+            ..isize::min(target.height as isize, beg_y + max_line_length as isize) as isize,
+    );
 
     let x_diff = (beg_x - end_x) as f32;
     let y_diff = (beg_y - end_y) as f32;
