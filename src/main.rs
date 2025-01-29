@@ -1,6 +1,7 @@
 use bresenham::Bresenham;
 use clap::Parser;
 use image::{ImageReader, RgbImage};
+use itertools::Itertools;
 use minifb::{Key, Window, WindowOptions};
 use rand::Rng;
 use rand::RngCore;
@@ -15,6 +16,9 @@ struct Args {
 
     #[clap(short, long)]
     output: Option<PathBuf>,
+
+    #[clap(long, action)]
+    coord_map: bool,
 }
 
 fn main() {
@@ -38,6 +42,49 @@ fn main() {
 
     let mut rng = rand::thread_rng();
     let mut canvas = vec![0; (width * height) as usize];
+
+    if args.coord_map {
+        let coords = (0isize..width as isize).cartesian_product(0isize..height as isize);
+        for (beg_x, beg_y) in coords {
+            let max_length = 10;
+            let end_x = rng.gen_range(
+                isize::max(0, beg_x - max_length)
+                    ..isize::min(target.width as isize, beg_x + max_length) as isize,
+            );
+            let end_y = rng.gen_range(
+                isize::max(0, beg_y - max_length)
+                    ..isize::min(target.height as isize, beg_y + max_length) as isize,
+            );
+
+            let x_coord = ((end_x + beg_x) / 2) as u32;
+            let y_coord = ((end_y + beg_y) / 2) as u32;
+
+            let coord: Point = [x_coord, y_coord];
+            let random_color = target.color_at(coord);
+            let r = random_color[0];
+            let g = random_color[1];
+            let b = random_color[2];
+
+            let changes = || {
+                Bresenham::new((beg_x, beg_y), (end_x, end_y))
+                    .map(|(x, y)| [x as u32, y as u32])
+                    .map(|pos| (pos, [r, g, b]))
+            };
+
+            // apply the changes, i.e. draw the line
+            approx.apply(changes());
+        }
+        approx.encode(&mut canvas);
+
+        // TODO: wrap this in a function
+        if let Some(output_path) = args.output {
+            let final_image: RgbImage = approx.into();
+            final_image
+                .save(output_path)
+                .expect("couldn't save final image");
+        }
+        return;
+    }
 
     let mut window = Window::new(
         "linez",
